@@ -7,11 +7,12 @@
 # Released under the scipy license
 
 from numpy.testing import assert_equal, assert_array_equal, \
-    assert_almost_equal, assert_, run_module_suite
+    assert_almost_equal, assert_
 
 import numpy as np
 import sys
-sys.path.insert(0, '../src')
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from covertree import CoverTree, distance_matrix
 from scipy.spatial.distance import euclidean, cityblock, chebyshev
@@ -80,8 +81,8 @@ class ConsistencyTests:
         assert_(np.all(d <= d_real * (1 + eps)))
 
 
-class test_random(ConsistencyTests):
-    def setUp(self):
+class TestRandom(ConsistencyTests):
+    def setup_method(self):
         self.n = 100
         self.m = 4
         self.data = np.random.randn(self.n, self.m)
@@ -92,14 +93,14 @@ class test_random(ConsistencyTests):
         self.k = 10
 
 
-class test_random_far(test_random):
-    def setUp(self):
-        test_random.setUp(self)
+class TestRandomFar(TestRandom):
+    def setup_method(self):
+        TestRandom.setup_method(self)
         self.x = np.random.randn(self.m) + 10
 
 
-class test_small(ConsistencyTests):
-    def setUp(self):
+class TestSmall(ConsistencyTests):
+    def setup_method(self):
         self.data = np.array([[0, 0, 0],
                               [0, 0, 1],
                               [0, 1, 0],
@@ -127,9 +128,9 @@ class test_small(ConsistencyTests):
                 ([0.1, 0.9], [0, 1]))
 
 
-class test_small_nonleaf(test_small):
-    def setUp(self):
-        test_small.setUp(self)
+class TestSmallNonleaf(TestSmall):
+    def setup_method(self):
+        TestSmall.setup_method(self)
         self.covertree = CoverTree(self.data, self.distance, leafsize=1)
 
 
@@ -157,8 +158,8 @@ class test_small_nonleaf(test_small):
 #        self.covertree = cKDTree(self.data)
 
 
-class test_vectorization:
-    def setUp(self):
+class TestVectorization:
+    def setup_method(self):
         self.data = np.array([[0, 0, 0],
                               [0, 0, 1],
                               [0, 1, 0],
@@ -270,7 +271,7 @@ class ball_consistency:
                     self.d * (1. + self.eps))
 
     def test_found_all(self):
-        c = np.ones(self.T.n, dtype=np.bool)
+        c = np.ones(self.T.n, dtype=bool)
         l = self.T.query_ball_point(self.x, self.d, eps=self.eps)
         c[l] = False
         for i in range(self.T.n):
@@ -279,8 +280,8 @@ class ball_consistency:
                         self.d / (1. + self.eps))
 
 
-class test_random_ball(ball_consistency):
-    def setUp(self, distance=euclidean):
+class TestRandomBall(ball_consistency):
+    def setup_method(self, method=None, distance=euclidean):
         n = 100
         m = 4
         self.data = np.random.randn(n, m)
@@ -291,26 +292,26 @@ class test_random_ball(ball_consistency):
         self.d = 0.2
 
 
-class test_random_ball_approx(test_random_ball):
-    def setUp(self):
-        test_random_ball.setUp(self)
+class TestRandomBallApprox(TestRandomBall):
+    def setup_method(self):
+        TestRandomBall.setup_method(self)
         self.eps = 0.1
 
 
-class test_random_ball_far(test_random_ball):
-    def setUp(self):
-        test_random_ball.setUp(self)
+class TestRandomBallFar(TestRandomBall):
+    def setup_method(self):
+        TestRandomBall.setup_method(self)
         self.d = 2.
 
 
-class test_random_ball_l1(test_random_ball):
-    def setUp(self):
-        test_random_ball.setUp(self, distance=cityblock)
+class TestRandomBallL1(TestRandomBall):
+    def setup_method(self):
+        TestRandomBall.setup_method(self, distance=cityblock)
 
 
-class test_random_ball_linf(test_random_ball):
-    def setUp(self):
-        test_random_ball.setUp(self, distance=chebyshev)
+class TestRandomBallLinf(TestRandomBall):
+    def setup_method(self):
+        TestRandomBall.setup_method(self, distance=chebyshev)
 
 
 def test_random_ball_vectorized():
@@ -334,7 +335,7 @@ class two_trees_consistency:
     def test_found_all(self):
         r = self.T1.query_ball_tree(self.T2, self.d, eps=self.eps)
         for i, l in enumerate(r):
-            c = np.ones(self.T2.n, dtype=np.bool)
+            c = np.ones(self.T2.n, dtype=bool)
             c[l] = False
             for j in range(self.T2.n):
                 if c[j]:
@@ -342,8 +343,8 @@ class two_trees_consistency:
                             self.d / (1. + self.eps))
 
 
-class test_two_random_trees(two_trees_consistency):
-    def setUp(self, distance=euclidean):
+class TestTwoRandomTrees(two_trees_consistency):
+    def setup_method(self, method=None, distance=euclidean):
         n = 50
         m = 4
         self.data1 = np.random.randn(n, m)
@@ -355,15 +356,15 @@ class test_two_random_trees(two_trees_consistency):
         self.d = 0.2
 
 
-class test_two_random_trees_far(test_two_random_trees):
-    def setUp(self):
-        test_two_random_trees.setUp(self)
+class TestTwoRandomTreesFar(TestTwoRandomTrees):
+    def setup_method(self):
+        TestTwoRandomTrees.setup_method(self)
         self.d = 2
 
 
-class test_two_random_trees_linf(test_two_random_trees):
-    def setUp(self):
-        test_two_random_trees.setUp(self, distance=chebyshev)
+class TestTwoRandomTreesLinf(TestTwoRandomTrees):
+    def setup_method(self):
+        TestTwoRandomTrees.setup_method(self, distance=chebyshev)
 
 
 def test_distance_l2():
@@ -384,8 +385,8 @@ def test_distance_linf():
 #    assert_equal(distance(x,y).shape,(10,7))
 
 
-class test_count_neighbors:
-    def setUp(self):
+class TestCountNeighbors:
+    def setup_method(self):
         n = 50
         m = 2
         self.T1 = CoverTree(np.random.randn(n, m), distance=euclidean,
@@ -413,8 +414,8 @@ class test_count_neighbors:
             assert_equal(self.T1.count_neighbors(self.T2, r), result)
 
 
-class test_sparse_distance_matrix:
-    def setUp(self):
+class TestSparseDistanceMatrix:
+    def setup_method(self):
         n = 50
         m = 4
         self.distance = euclidean
@@ -509,7 +510,3 @@ def test_ball_point_ints():
     tree = CoverTree(points, distance)
     assert_equal(sorted([4, 8, 9, 12]),
                  sorted(tree.query_ball_point((2, 0), 1)))
-
-
-if __name__ == "__main__":
-    run_module_suite()

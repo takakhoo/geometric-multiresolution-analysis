@@ -455,8 +455,11 @@ class CoverTree(object):
         #  minimum distance between the node area and the target
         #  distance between node center and target
         #  the node
+        # Include a deterministic scalar tie-breaker. Python 3 cannot compare
+        # node objects when two heap entries have identical distances.
         q = [(min_distance,
               dist_to_ctr,
+              self.root.ctr_idx,
               self.root)]
         # priority queue for the nearest neighbors
         # furthest known neighbor first
@@ -470,7 +473,7 @@ class CoverTree(object):
 
         while q:
             # print(q)
-            min_distance, dist_to_ctr, node = heappop(q)
+            min_distance, dist_to_ctr, _, node = heappop(q)
             if isinstance(node, CoverTree._LeafNode):
                 # brute-force
                 for i in node.idx:
@@ -501,7 +504,7 @@ class CoverTree(object):
 
                     # child might be too far, if so, don't bother pushing it
                     if min_distance <= distance_upper_bound * epsfac:
-                        heappush(q, (min_distance, d, child))
+                        heappush(q, (min_distance, d, child.ctr_idx, child))
 
         return sorted([(-d, i) for (d, i) in neighbors])
 
