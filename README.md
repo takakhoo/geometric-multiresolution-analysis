@@ -18,8 +18,8 @@ require large external datasets and additional machine-learning dependencies.
 ## Quick start
 
 ```bash
-git clone https://github.com/takakhoo/Geometric-Multi-Resolution-Analysis.git
-cd Geometric-Multi-Resolution-Analysis
+git clone https://github.com/takakhoo/geometric-multiresolution-analysis.git
+cd geometric-multiresolution-analysis
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 python -m pip install numpy scipy pytest
@@ -66,6 +66,9 @@ neighbor counting, and sparse distance matrices:
 ```bash
 python -m pytest -q
 ```
+
+Verified on September 16, 2026: **53 tests passed** across the core cover-tree
+and multiscale geometry operations.
 
 ## Limitations
 
