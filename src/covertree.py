@@ -77,7 +77,7 @@ class CoverTree(object):
             self[i] = value = self.b ** (i + 1) / (self.b - 1)
             return value
 
-    def __init__(self, data, distance, leafsize=10, base=2):
+    def __init__(self, data, distance, leafsize=10, base=2, random_state=None):
         """
         Construct a cover tree.
 
@@ -126,6 +126,7 @@ class CoverTree(object):
         >>> ct = CoverTree(data, lev)
         """
         self.data = np.asarray(data)
+        self._rng = random if random_state is None else random.Random(random_state)
         self.n = self.data.shape[0]
         self.pt_shape = self.data.shape[1:]
         self.distance = distance
@@ -333,7 +334,7 @@ class CoverTree(object):
                     # none remain
                     children = [p_im1]
                     while near_p_ds:
-                        q_idx, _ = random.choice(near_p_ds)
+                        q_idx, _ = self._rng.choice(near_p_ds)
 
                         near_q_ds, far_q_ds = split_without_dist(
                             q_idx, child_d[i - 1], child_d[i], near_p_ds)
@@ -371,7 +372,7 @@ class CoverTree(object):
             # Maximum distance between any two points can't exceed twice the
             # distance between some fixed point and any other point due to
             # the triangle inequality
-            p_idx = random.randrange(self.n)
+            p_idx = self._rng.randrange(self.n)
             near_p_ds = [(j, self.distance(self.data[p_idx], self.data[j]))
                          for j in np.arange(self.n)]
             far_p_ds = []

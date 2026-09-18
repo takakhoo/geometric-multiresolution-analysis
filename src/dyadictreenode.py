@@ -91,7 +91,7 @@ class DyadicTreeNode:
                 Y: np.ndarray = Phij1x - Phij1x @ Phijx.T @ Phijx
             
                 U,s,_ = rand_pca(Y.T, min(min(X.shape), max_dim))
-                wav_dims = (s > threshold).sum(dtype=np.int8)
+                wav_dims = int((s > threshold).sum())
 
                 if wav_dims > 0:
                     c.wav_basis = U[:,:wav_dims].T # (nxd)
@@ -104,4 +104,6 @@ class DyadicTreeNode:
                 c.wav_consts = tjx - Phijx.T @ Phijx @ tjx
             else:
                 c.wav_basis  = np.zeros((X.shape[1], 0)).T # (nxd)
-                c.wav_consts = np.zeros((X.shape[1], 1))
+                # Even a rank-zero leaf has an affine center displacement.
+                tjx = c.center - self.center
+                c.wav_consts = tjx - Phijx.T @ Phijx @ tjx

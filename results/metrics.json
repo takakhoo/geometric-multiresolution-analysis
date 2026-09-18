@@ -1,0 +1,91 @@
+{
+  "description": "Synthetic noisy helix in 12 dimensions; 300 train and 150 independent held-out points per seed.",
+  "seeds": [
+    7,
+    19,
+    41
+  ],
+  "noise_std": 0.015,
+  "local_max_rank": 2,
+  "rows": [
+    {
+      "seed": 7,
+      "method": "global_pca_rank2",
+      "rmse_clean": 0.1404747156964363
+    },
+    {
+      "seed": 7,
+      "method": "gmra_leafsize8",
+      "leaves": 54,
+      "rmse_clean": 0.013417064722061214,
+      "inverse_projection_max_error": 1.1124434706744069e-13
+    },
+    {
+      "seed": 7,
+      "method": "gmra_leafsize24",
+      "leaves": 21,
+      "rmse_clean": 0.009146125793852156,
+      "inverse_projection_max_error": 1.007197797386894e-13
+    },
+    {
+      "seed": 7,
+      "method": "gmra_leafsize64",
+      "leaves": 7,
+      "rmse_clean": 0.03258248811421554,
+      "inverse_projection_max_error": 4.413136522884997e-14
+    },
+    {
+      "seed": 19,
+      "method": "global_pca_rank2",
+      "rmse_clean": 0.13820186593260714
+    },
+    {
+      "seed": 19,
+      "method": "gmra_leafsize8",
+      "leaves": 54,
+      "rmse_clean": 0.013091647933848038,
+      "inverse_projection_max_error": 4.446443213623752e-13
+    },
+    {
+      "seed": 19,
+      "method": "gmra_leafsize24",
+      "leaves": 21,
+      "rmse_clean": 0.01417503413046985,
+      "inverse_projection_max_error": 2.5991986341011852e-12
+    },
+    {
+      "seed": 19,
+      "method": "gmra_leafsize64",
+      "leaves": 8,
+      "rmse_clean": 0.024456582921593587,
+      "inverse_projection_max_error": 1.645350522494482e-13
+    },
+    {
+      "seed": 41,
+      "method": "global_pca_rank2",
+      "rmse_clean": 0.13206276535921652
+    },
+    {
+      "seed": 41,
+      "method": "gmra_leafsize8",
+      "leaves": 59,
+      "rmse_clean": 0.011752627783074756,
+      "inverse_projection_max_error": 1.0957901253050295e-13
+    },
+    {
+      "seed": 41,
+      "method": "gmra_leafsize24",
+      "leaves": 18,
+      "rmse_clean": 0.013076542551578415,
+      "inverse_projection_max_error": 3.907985046680551e-14
+    },
+    {
+      "seed": 41,
+      "method": "gmra_leafsize64",
+      "leaves": 8,
+      "rmse_clean": 0.016962945493648764,
+      "inverse_projection_max_error": 7.521760991835436e-14
+    }
+  ],
+  "caveat": "Local models have more parameters and center/leaf overhead than one global PCA model; this is not a matched-storage compression benchmark."
+}

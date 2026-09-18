@@ -1,6 +1,7 @@
 from collections import Counter
 import numpy as np
-import torch as pt
+import math
+from scipy.spatial.distance import pdist
 
 #This file contains util helper functions that aid in traversing trees, gaining info from trees, and operations over trees
 
@@ -170,9 +171,9 @@ def get_embeddings(tree, X):
 #Compute max scale for the covertree, taking in input X. Computes log of max of pairwise pt distances
 def calculate_max_scale(dataset):
      # Check if the input is a PyTorch tensor
-    if isinstance(dataset, pt.Tensor):
+    if hasattr(dataset, 'detach'):
         # Convert PyTorch tensor to NumPy array
-        dataset = dataset.detach().numpy()
+        dataset = dataset.detach().cpu().numpy()
     # Check if the input is a NumPy array
     if not isinstance(dataset, np.ndarray):
         raise ValueError("Invalid type for dataset. Must be a PyTorch tensor or a NumPy array.")

@@ -405,6 +405,7 @@ class DyadicTree:
         Recursively compute basis for all nodes in the tree
         '''
         logging.info("Starting basis construction for DyadicTree")
+        self.j_k_to_node = {}
         
         # Setup root node
         self.root.is_leaf = len(self.root.children) == 0
@@ -576,6 +577,9 @@ class DyadicTree:
                 logging.debug(f"Processing point {idx+1}/{len(leafs)}, leaf at (j={leaf.node_j}, k={leaf.node_k})")
             
             x = X[idx].reshape(1, -1)  #  a row
+            if leaf.parent is None:
+                Qjx[idx] = [leaf.basis @ (x.T - leaf.center)]
+                continue
             pjx = leaf.basis @ (x.T - leaf.center) 
             qjx = leaf.wav_basis @ leaf.basis.T @ pjx
             # log qjx
@@ -639,7 +643,7 @@ class DyadicTree:
             while leaf.parent is not None:
                 coeff = Y[:, coeff_dim:coeff_dim + leaf.wav_basis.shape[0]]
                 coeff_dim += leaf.wav_basis.shape[0]
-                Qjx += (coeff @ leaf.wav_basis + leaf.wav_consts.T +
+                Qjx += (coeff @ leaf.wav_basis + leaf.wav_consts.T -
                         Qjx @ leaf.parent.basis.T @ leaf.parent.basis)
                 logging.debug(f"Multiplying node (j={leaf.node_j}, k={leaf.node_k}),\
                     with coeff from dimension {coeff_dim - leaf.wav_basis.shape[0]} to {coeff_dim}")
@@ -672,6 +676,9 @@ class DyadicTree:
             # coefficient and leaf node for this data
             coeffs = list(reversed(gmra_q_coeff[i]))# leaf -> root
             leaf = self.j_k_to_node[leaves_j_k[i]]
+            if leaf.parent is None:
+                X_recon[i] = (leaf.basis.T @ coeffs[0] + leaf.center).ravel()
+                continue
             lvl_from_leaf = 0
             
             logging.debug(f"Point {i}: starting from leaf (j={leaf.node_j}, k={leaf.node_k}), {len(coeffs)} coefficient levels")
@@ -685,7 +692,7 @@ class DyadicTree:
             lvl_from_leaf += 1
 
             while leaf.parent is not None:
-                Qjx += (leaf.wav_basis.T @ coeffs[lvl_from_leaf] + leaf.wav_consts +
+                Qjx += (leaf.wav_basis.T @ coeffs[lvl_from_leaf] + leaf.wav_consts -
                         leaf.parent.basis.T @ leaf.parent.basis @ Qjx)
                 logging.debug(f"Point {i}: intermediate level (j={leaf.node_j}, k={leaf.node_k}), Qjx shape: {Qjx.shape}")
                 leaf = leaf.parent
@@ -815,9 +822,10 @@ class DyadicTree:
             Returns the instance itself.
         """
         X = np.asarray(X)
-        if X.ndim != 2:
-            raise ValueError("X must be a 2D array")
-        
+        if X.ndim != 2 or not min(X.shape) or not np.isfinite(X).all():
+            raise ValueError("X must be a nonempty finite 2D array")
+        if X.shape != self.cover_tree.data.shape or not np.array_equal(X, self.cover_tree.data):
+            raise ValueError("Fit data must match the cover-tree data and row ordering; build a new cover tree for new data")
         self._X_shape = X.shape
         
         # Learn basis and wavelets
@@ -883,13 +891,15 @@ class DyadicTree:
                            "Call 'fit' with appropriate arguments before using this estimator.")
         
         X = np.asarray(X)
-        if X.ndim != 2:
-            raise ValueError("X must be a 2D array")
+        if X.ndim != 2 or not np.isfinite(X).all():
+            raise ValueError("X must be a finite 2D array")
         
         if X.shape[1] != self._X_shape[1]:
             raise ValueError(f"X has {X.shape[1]} features, but DyadicTree is expecting "
                            f"{self._X_shape[1]} features as seen in fit.")
         
+        if len(X) == 0:
+            return [], []
         return self.fgwt(X)
     
     def inverse_transform(self, X_transformed):

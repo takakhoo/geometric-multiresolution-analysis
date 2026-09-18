@@ -20,84 +20,36 @@ def mindim(sigmas: np.ndarray,
     return dim
 
 
-def rand_pca(A: np.ndarray,
-             k: int,
-             its: int = 2,
-             l: int = None,
-             shelf=None, inverse=False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    U: np.ndarray = None
-    s: np.ndarray = None
-    V: np.ndarray = None
+def rand_pca(A, k, its=2, l=None, shelf=None, inverse=False, random_state=7):
+    """Seeded truncated SVD with a stable randomized range finder.
 
-    if l is None:
-        l = k + 2
-
-    n, m = A.shape
-    if (its*l >= m/1.25) or (its*l >= n/1.25):
-        U, s, V = np.linalg.svd(A, full_matrices=inverse)
-
-        U = U[:, :k]
-        s = s[:k]
-        # V = V[:, :k] #CHANGED V = V[:, 1:k]
-
+    Returns U (n,k), singular values (k,), Vh (k,m). The legacy inverse
+    flag no longer changes dimensions. Disk-backed shelves are unsupported.
+    """
+    A = np.asarray(A, dtype=float)
+    if A.ndim != 2 or not min(A.shape) or not np.isfinite(A).all():
+        raise ValueError("A must be a nonempty finite matrix")
+    if not isinstance(k, (int, np.integer)) or k < 0 or its < 0:
+        raise ValueError("k and power iterations must be nonnegative")
+    if shelf is not None:
+        raise NotImplementedError("Disk-backed PCA shelves are not supported")
+    k = min(k, min(A.shape))
+    width = min(min(A.shape), k + 8 if l is None else l)
+    if width < k:
+        raise ValueError("Sketch width cannot be smaller than k")
+    if k == 0:
+        return np.empty((A.shape[0], 0)), np.empty(0), np.empty((0, A.shape[1]))
+    if width >= min(A.shape) or min(A.shape) <= 32:
+        U, s, Vh = np.linalg.svd(A, full_matrices=False)
     else:
-        H: np.ndarray = None
-        if n >= m:
-            if shelf is None:
-                H = A.dot(2*np.random.randn(m, l) - np.ones(m, l))
-            else:
-                shelf.rand = np.random.randn(m, l)
-                H = A.dot(2*shelf.rand - (shelf.ndarray((m,l), dtype=float)*0+1))
-
-            F: np.ndarray = None
-            if shelf is None:
-                F = np.zeros(n, its*l)
-            else:
-                F = shelf.nparray((n, its*l), dtype=float)*0
-            F[:n, :l] = H
-
-            for it in range(its):
-                H = H.T.dot(A).T
-                H = A.dot(H)
-                F[:n, (it+1)*l:(it+2)*l] = H
-
-            Q,_,_ = qr(F, mode="enconomic")
-            U2, s, V = np.linalg.svd(Q.T.dot(A))
-            U = Q.dot(U2)
-
-            U = U[:, :k]
-            s = s[:k]
-            # V = V[:,:k]
-
-        else:
-            if shelf is None:
-                H = (2*np.random.randn(n, l) - np.ones(n, l)).dot(A).T
-            else:
-                shelf.rand = np.random.randn(n,l)
-                H = (2*shelf.rand - (shelf.ndarray((n,l), dtype=float)*0+1)).dot(A).T
-
-            F: np.ndarray = None
-            if shelf is None:
-                F = np.zeros(m, its*l)
-            else:
-                F = shelf.nparray((m, its*l), dtype=float)*0
-            F[:n, :l] = H
-            F[:m, :l] = H
-
-            for it in range(its):
-                H = A.dot(H)
-                H = H.T.dot(A).T
-                F[:m, (it+1)*l:(it+2)*l] = H
-
-            Q,_,_ = qr(F, mode="enconomic")
-            U, s, V2 = np.linalg.svd(A.dot(Q))
-            V = Q.dot(V2)
-
-            U = U[:, :k]
-            s = s[:k]
-            # V = V[:,:k]
-
-    return U, s, V
+        rng = np.random.default_rng(random_state)
+        Q, _ = np.linalg.qr(A @ rng.standard_normal((A.shape[1], width)), mode="reduced")
+        for _ in range(its):
+            Z, _ = np.linalg.qr(A.T @ Q, mode="reduced")
+            Q, _ = np.linalg.qr(A @ Z, mode="reduced")
+        small_U, s, Vh = np.linalg.svd(Q.T @ A, full_matrices=False)
+        U = Q @ small_U
+    return U[:, :k], s[:k], Vh[:k]
 
 def easy_pca(A: np.ndarray, k: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     U, s, Vt = np.linalg.svd(A, full_matrices=False)
@@ -124,51 +76,26 @@ def easy_node_function(X: np.ndarray,
     rem_energy: float = max(np.sum(np.sum(X_norm**2) - np.sum(sigmas**2)), 0)
     return mu, X.shape[0], radius, basis, sigmas, Z
     
-def node_function(X: np.ndarray,
-                  manifold_dim: int,
-                  max_dim: int,
-                  is_leaf: bool,
-                  errortype: str = "relative",
-                  shelf=None,
-                  threshold: float = 0.5,
-                  precision: float = 1e-2, inverse = False) -> Tuple[np.ndarray, int, float,
-                                                 np.ndarray, np.ndarray]:
-    if inverse:
-        X = X.T # convert to (d,n)
-        mu: np.ndarray = np.mean(X, axis=1, keepdims=True)
-    else:
-        mu: np.ndarray = np.mean(X, axis=0, keepdims=True)
+def node_function(X, manifold_dim, max_dim, is_leaf, errortype="relative",
+                  shelf=None, threshold=0.5, precision=1e-2, inverse=False):
+    """Local affine model for row-sample input, independent of legacy inverse flag.
 
-    X_mean_centered: np.ndarray = X - mu
-    radius: float = np.sqrt(np.max((X_mean_centered**2).sum(axis=-1)))
-
-    size: int = max(1, X.shape[0])
-
-    sigmas: np.ndarray = None
-    basis: np.ndarray = None
-    if is_leaf or manifold_dim == 0:
-        V, s, Z = rand_pca(X_mean_centered, min(min(X_mean_centered.shape), max_dim))
-        rem_energy: float = max(np.sum(np.sum(X_mean_centered**2) - np.sum(s**2)), 0)
-        sigmas = np.hstack([s, [np.sqrt(rem_energy)]]) / np.sqrt(size)
-
-        dim: int = None
-        if not is_leaf:
-            dim = min(s.shape[0], mindim(sigmas, errortype, threshold))
-        else:
-            dim = min(s.shape[0], mindim(sigmas, errortype, precision))
-        basis = V[:, :dim]
-        # print('adaptive dim:',dim, 'original dim', s.shape[0])
-        # basis = V
-
-    else:
-        V, s, Z = rand_pca(X_mean_centered, min(min(X_mean_centered.shape), manifold_dim))
-        sigmas = s / np.sqrt(size)
-        if V.shape[-1] < manifold_dim:
-            V = np.hstack([V, np.zeros((V.shape[0], manifold_dim - size))])
-        basis = V[:, :min(manifold_dim, int(np.sum(sigmas > 0)))]
-        # print('hard select dim:',min(manifold_dim, int(np.sum(sigmas > 0))), 'original dim', s.shape[0])
-
-    if inverse:
-        return mu, X.shape[0], radius, basis.T, sigmas, Z
-    else:
-        return mu, X.shape[0], radius, basis, sigmas, Z
+    Center is (features,1), basis is (rank,features), size counts samples.
+    """
+    X = np.asarray(X, dtype=float)
+    if X.ndim != 2 or not min(X.shape) or not np.isfinite(X).all():
+        raise ValueError("Node data must be a nonempty finite matrix")
+    if max_dim is None or max_dim < 1 or manifold_dim < 0:
+        raise ValueError("Positive max_dim and nonnegative manifold_dim required")
+    center = X.mean(axis=0)[:, None]
+    centered = X - center.T
+    size = len(X)
+    radius = float(np.linalg.norm(centered, axis=1).max())
+    adaptive = is_leaf or manifold_dim == 0
+    limit = min(min(centered.shape), max_dim if adaptive else min(max_dim, manifold_dim))
+    U, singular, Vh = rand_pca(centered.T, limit, shelf=shelf)
+    numerical_rank = int(np.sum(singular > (singular[0] * max(centered.shape) * np.finfo(float).eps))) if len(singular) else 0
+    remainder = max(float(np.sum(centered ** 2) - np.sum(singular ** 2)), 0)
+    sigmas = np.r_[singular, np.sqrt(remainder)] / np.sqrt(size)
+    rank = min(numerical_rank, mindim(sigmas, errortype, precision if is_leaf else threshold)) if adaptive else numerical_rank
+    return center, size, radius, U[:, :rank].T, sigmas, Vh
